@@ -1,0 +1,270 @@
+
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>study page v17</title>
+    <style>
+        :root {
+            --primary-blue: #00a8e8;
+            --bg-light-blue: #e3f2fd;
+            --glass-bg: rgba(255, 255, 255, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.5);
+            --text-main: #37474f;
+            --accent-soft: #90caf9;
+            --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        body {
+            margin: 0; font-family: 'Inter', 'Noto Sans JP', sans-serif;
+            background-color: var(--bg-light-blue);
+            background-image: radial-gradient(at 0% 0%, hsla(205,100%,90%,1) 0, transparent 50%),
+                              radial-gradient(at 100% 0%, hsla(195,100%,90%,1) 0, transparent 50%);
+            height: 100vh; display: flex; flex-direction: column;
+            align-items: center; justify-content: center; color: var(--text-main); overflow: hidden;
+        }
+
+        .glass-card {
+            background: var(--glass-bg); backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border); border-radius: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.04); padding: 1.5rem;
+            width: 90%; max-width: 500px; margin-bottom: 15px; text-align: center;
+        }
+
+        #clock-display { font-size: 4.5rem; font-weight: 700; color: var(--primary-blue); margin: 5px 0; letter-spacing: -2px; font-variant-numeric: tabular-nums; }
+        #date-display { font-size: 0.9rem; color: var(--accent-soft); letter-spacing: 2px; font-weight: 600; }
+
+        .top-controls {
+            position: fixed; top: 20px; right: 20px;
+            display: flex; gap: 10px; z-index: 100;
+        }
+        .icon-btn {
+            background: white; width: 45px; height: 45px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            font-size: 1.2rem; transition: var(--transition); border: none;
+        }
+
+        .tabs { display: flex; background: rgba(0,0,0,0.05); padding: 4px; border-radius: 15px; margin-bottom: 15px; gap: 4px; }
+        .tab-btn { flex: 1; border: none; background: none; padding: 10px; border-radius: 11px; cursor: pointer; font-weight: bold; color: var(--text-main); font-size: 0.8rem; }
+        .tab-btn.active { background: white; color: var(--primary-blue); box-shadow: 0 4px 10px rgba(0,0,0,0.05); }
+
+        .timer-setup-row { display: flex; align-items: center; justify-content: center; gap: 15px; margin-bottom: 10px; }
+        .arrow-btn { background: white; border: 1px solid #ddd; width: 35px; height: 35px; border-radius: 8px; cursor: pointer; font-weight: bold; color: var(--primary-blue); }
+        .timer-input { font-size: 1.5rem; width: 70px; padding: 5px; border: 2px solid var(--accent-soft); border-radius: 12px; text-align: center; outline: none; }
+        .timer-display { font-size: 5rem; font-weight: 800; color: var(--text-main); margin: 0; font-variant-numeric: tabular-nums; }
+        
+        .c-btn { padding: 15px; border: none; border-radius: 12px; background: white; font-weight: 600; cursor: pointer; }
+        .c-btn.eq { background: var(--primary-blue); color: white; }
+
+        #ext-container { width: 100%; height: 220px; border-radius: 15px; overflow: hidden; background: white; }
+        iframe { width: 100%; height: 100%; border: none; }
+
+        .modal { position: fixed; inset: 0; background: rgba(255,255,255,0.85); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal.open { display: flex; }
+        .modal-card { width: 90%; max-width: 480px; text-align: left; max-height: 85vh; overflow-y: auto; }
+        #source-display { width: 100%; height: 200px; background: #282c34; color: #abb2bf; font-family: monospace; display: none; margin-top: 10px; }
+
+        .hidden { display: none !important; }
+        
+        .music-info { font-size: 0.8rem; color: var(--primary-blue); margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+
+    <div class="top-controls">
+        <button class="icon-btn" onclick="switchTool('store')">🛒</button>
+        <button class="icon-btn" onclick="toggleMenu(true)">⚙️</button>
+    </div>
+
+    <!-- 設定 -->
+    <div id="modal" class="modal">
+        <div class="glass-card modal-card">
+            <h2 style="text-align: center; color: var(--primary-blue);">設定</h2>
+            <p><strong>🎵 勉強用BGM (MP3)</strong></p>
+            <input type="file" id="bgm-input" accept="audio/*" style="width: 100%; margin-bottom: 10px;">
+            <p style="font-size: 0.7rem; color: #777;">※ Kキーで再生/停止、自動ループします。</p>
+            
+            <hr>
+            <p><strong>🧩 拡張機能を追加</strong></p>
+            <input type="file" id="ext-file" accept=".html" style="width: 100%; margin-bottom: 15px;">
+            <hr>
+            <button onclick="toggleSource()">ソースコードを表示</button>
+            <textarea id="source-display" readonly></textarea>
+            <button class="c-btn eq" onclick="saveSettings()" style="width: 100%; margin-top: 20px;">保存して閉じる</button>
+        </div>
+    </div>
+
+    <div id="clock-container" class="glass-card">
+        <div id="date-display">...</div>
+        <div id="clock-display">00:00:00</div>
+    </div>
+
+    <div class="glass-card">
+        <div id="music-status" class="music-info">BGM: 未選択 (Kキーで操作)</div>
+        
+        <div class="tabs">
+            <button class="tab-btn active" id="tab-timer" onclick="switchTool('timer')">タイマー</button>
+            <button class="tab-btn" id="tab-calc" onclick="switchTool('calc')">電卓</button>
+            <button class="tab-btn" id="tab-note" onclick="switchTool('note')">メモ帳</button>
+            <button class="tab-btn" id="tab-ext" onclick="switchTool('ext')">拡張</button>
+        </div>
+
+        <div id="view-timer">
+            <div id="timer-setup" class="timer-setup-row">
+                <button class="arrow-btn" onclick="adjTime(-5)">▼</button>
+                <input type="number" id="timer-min" class="timer-input" value="25" min="0">
+                <span style="font-weight: bold;">分</span>
+                <button class="arrow-btn" onclick="adjTime(5)">▲</button>
+            </div>
+            <div class="timer-display" id="timer-text">25:00</div>
+            <div style="display: flex; justify-content: center; gap: 10px;">
+                <button class="c-btn eq" id="timer-start-btn" onclick="toggleTimer()" style="width: 120px;">開始</button>
+                <button class="c-btn" onclick="resetTimer()" style="width: 120px; background: #eee;">リセット</button>
+            </div>
+        </div>
+
+        <!-- 電卓（簡易版） -->
+        <div id="view-calc" class="hidden">
+            <input type="text" id="calc-screen" readonly style="width:100%; padding:10px; font-size:1.5rem; text-align:right; border-radius:10px; border:none; background:#f0f0f0;">
+            <div style="display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-top:10px;">
+                <button class="c-btn" onclick="appendCalc('7')">7</button><button class="c-btn" onclick="appendCalc('8')">8</button><button class="c-btn" onclick="appendCalc('9')">9</button><button class="c-btn" onclick="appendCalc('/')">÷</button>
+                <button class="c-btn" onclick="appendCalc('4')">4</button><button class="c-btn" onclick="appendCalc('5')">5</button><button class="c-btn" onclick="appendCalc('6')">6</button><button class="c-btn" onclick="appendCalc('*')">×</button>
+                <button class="c-btn" onclick="appendCalc('1')">1</button><button class="c-btn" onclick="appendCalc('2')">2</button><button class="c-btn" onclick="appendCalc('3')">3</button><button class="c-btn" onclick="appendCalc('-')">-</button>
+                <button class="c-btn" onclick="clearCalc()">AC</button><button class="c-btn" onclick="appendCalc('0')">0</button><button class="c-btn eq" onclick="calculate()">=</button><button class="c-btn" onclick="appendCalc('+')">+</button>
+            </div>
+        </div>
+        
+        <div id="view-note" class="hidden"><textarea id="note-area" style="width:100%; height:200px; border:none; border-radius:15px; padding:10px; outline:none;" placeholder="メモを入力..."></textarea></div>
+        <div id="view-ext" class="hidden"><div id="ext-container"></div></div>
+    </div>
+
+    <!-- オーディオ要素 -->
+    <audio id="bgm-player" loop></audio>
+    <audio id="alarm-player">
+        <source src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" type="audio/ogg">
+    </audio>
+
+    <script>
+        let timerSeconds = 0;
+        let timerInterval = null;
+        let currentTool = 'timer';
+        const bgm = document.getElementById('bgm-player');
+        const alarm = document.getElementById('alarm-player');
+
+        // キーボード操作
+        window.addEventListener('keydown', (e) => {
+            // Kキーで再生・停止
+            if (e.key.toLowerCase() === 'k') {
+                if (bgm.src) {
+                    if (bgm.paused) {
+                        bgm.play();
+                        updateMusicStatus("再生中");
+                    } else {
+                        bgm.pause();
+                        updateMusicStatus("停止中");
+                    }
+                }
+            }
+            // 矢印キー
+            if (currentTool === 'timer' && !timerInterval) {
+                if (e.key === 'ArrowUp') { e.preventDefault(); adjTime(5); }
+                else if (e.key === 'ArrowDown') { e.preventDefault(); adjTime(-5); }
+            }
+        });
+
+        function updateMusicStatus(status) {
+            const info = document.getElementById('music-status');
+            info.innerText = `BGM: ${status} (Kキーで操作)`;
+        }
+
+        function adjTime(val) {
+            const el = document.getElementById('timer-min');
+            let current = parseInt(el.value) || 0;
+            current = Math.max(0, current + val);
+            el.value = current;
+            timerSeconds = current * 60;
+            updateTimerDisplay();
+        }
+
+        function updateTimerDisplay() {
+            const m = Math.floor(timerSeconds / 60);
+            const s = timerSeconds % 60;
+            document.getElementById('timer-text').innerText = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+        }
+
+        function toggleTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                document.getElementById('timer-start-btn').innerText = "再開";
+            } else {
+                if (timerSeconds <= 0) {
+                    timerSeconds = (parseInt(document.getElementById('timer-min').value) || 0) * 60;
+                }
+                if (timerSeconds <= 0) return;
+                document.getElementById('timer-setup').classList.add('hidden');
+                document.getElementById('timer-start-btn').innerText = "停止";
+                timerInterval = setInterval(() => {
+                    timerSeconds--;
+                    updateTimerDisplay();
+                    if (timerSeconds <= 0) {
+                        clearInterval(timerInterval);
+                        timerInterval = null;
+                        alarm.play(); // デフォルトのアラーム
+                        alert("時間になりました！");
+                        document.getElementById('timer-start-btn').innerText = "開始";
+                    }
+                }, 1000);
+            }
+        }
+
+        function resetTimer() {
+            clearInterval(timerInterval);
+            timerInterval = null;
+            document.getElementById('timer-setup').classList.remove('hidden');
+            adjTime(0);
+            document.getElementById('timer-start-btn').innerText = "開始";
+        }
+
+        function switchTool(type) {
+            currentTool = type;
+            ['timer', 'calc', 'note', 'ext'].forEach(t => {
+                document.getElementById(`view-${t}`).classList.toggle('hidden', t !== type);
+                document.getElementById(`tab-${t}`)?.classList.toggle('active', t === type);
+            });
+        }
+
+        function toggleMenu(show) { 
+            if(show) document.getElementById('source-display').value = document.documentElement.outerHTML;
+            document.getElementById('modal').classList.toggle('open', show); 
+        }
+
+        function toggleSource() {
+            const sd = document.getElementById('source-display');
+            sd.style.display = sd.style.display === 'block' ? 'none' : 'block';
+        }
+
+        function saveSettings() {
+            const mFile = document.getElementById('bgm-input').files[0];
+            if (mFile) {
+                bgm.src = URL.createObjectURL(mFile);
+                updateMusicStatus("準備完了");
+            }
+            toggleMenu(false);
+        }
+
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('date-display').innerText = now.toLocaleDateString('ja-JP', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+            document.getElementById('clock-display').innerText = now.toLocaleTimeString('ja-JP', { hour12: false });
+        }
+        setInterval(updateClock, 1000); updateClock();
+        adjTime(0);
+
+        function appendCalc(v) { document.getElementById('calc-screen').value += v; }
+        function clearCalc() { document.getElementById('calc-screen').value = ''; }
+        function calculate() { try { document.getElementById('calc-screen').value = eval(document.getElementById('calc-screen').value); } catch { document.getElementById('calc-screen').value = 'Error'; } }
+    </script>
+</body>
+</html>
